@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 void main() {
   runApp(const MyApp());
@@ -71,6 +72,7 @@ class _PixabayPageState extends State<PixabayPage> {
 
                 File imageFile = await File('${dir.path}/image.png')
                     .writeAsBytes(response.data);
+                await Share.shareFiles([imageFile.path]);
               }),
               child: Stack(
                 fit: StackFit.expand,
