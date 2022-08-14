@@ -28,13 +28,34 @@ class PixabayPage extends StatefulWidget {
 }
 
 class _PixabayPageState extends State<PixabayPage> {
-  List imageList = [];
+  List<PixabayImage> pixabayImages = [];
 
+  ///画像をAPIを通して取得する
   Future<void> fetchImages(String text) async {
-    Response response = await Dio().get(
-        'https://pixabay.com/api/?key=29261632-46d433d4c93a34434e822568f&q=$text&image_type=photo&per_page=100');
-    imageList = response.data['hits'];
+    final response =
+        await Dio().get('https://pixabay.com/api/', queryParameters: {
+      'key': '29261632-46d433d4c93a34434e822568f',
+      'q': text,
+      'image_type': 'photo',
+      'per_page': 100
+    });
+    final List list = response.data['hits'];
+    pixabayImages = list
+        .map(
+          (e) => PixabayImage.fromMap(e),
+        )
+        .toList();
     setState(() {});
+  }
+
+  ///画像をシェアする
+  Future<void> shareImage(String url) async {
+    final dir = await getTemporaryDirectory();
+    final response = await Dio()
+        .get(url, options: Options(responseType: ResponseType.bytes));
+    final imageFile =
+        await File('${dir.path}/image.png').writeAsBytes(response.data);
+    await Share.shareFiles([imageFile.path]);
   }
 
   @override
@@ -61,24 +82,18 @@ class _PixabayPageState extends State<PixabayPage> {
       body: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3),
-          itemCount: imageList.length,
+          itemCount: pixabayImages.length,
           itemBuilder: (context, index) {
-            Map<String, dynamic> image = imageList[index];
+            final image = pixabayImages[index];
             return InkWell(
-              onTap: (() async {
-                Directory dir = await getTemporaryDirectory();
-                Response response = await Dio().get(image['webformatURL'],
-                    options: Options(responseType: ResponseType.bytes));
-
-                File imageFile = await File('${dir.path}/image.png')
-                    .writeAsBytes(response.data);
-                await Share.shareFiles([imageFile.path]);
+              onTap: (() {
+                shareImage(image.webformatURL);
               }),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   Image.network(
-                    image['previewURL'],
+                    image.previewURL,
                     fit: BoxFit.cover,
                   ),
                   Align(
@@ -92,7 +107,7 @@ class _PixabayPageState extends State<PixabayPage> {
                               Icons.thumb_up_alt_outlined,
                               size: 14,
                             ),
-                            Text(image['likes'].toString()),
+                            Text(image.likes.toString()),
                           ],
                         )),
                   )
@@ -101,5 +116,23 @@ class _PixabayPageState extends State<PixabayPage> {
             );
           }),
     );
+  }
+}
+
+class PixabayImage {
+  final String previewURL;
+  final String webformatURL;
+  final int likes;
+
+  PixabayImage(
+      {required this.previewURL,
+      required this.webformatURL,
+      required this.likes});
+
+  factory PixabayImage.fromMap(Map<String, dynamic> map) {
+    return PixabayImage(
+        previewURL: map['previewURL'],
+        webformatURL: map['webformatURL'],
+        likes: map['likes']);
   }
 }
